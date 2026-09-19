@@ -296,7 +296,7 @@ function Shell({ user, onLoggedOut }) {
   }
 
   function exportCsv() {
-    const header = ["Nama", "Kategori", "Wilayah", "PIC", "Pengaruh", "Kepentingan", "Kuadran", "Status", "Diperbarui"];
+    const header = ["Nama", "Kategori", "Alamat", "PIC", "Pengaruh", "Kepentingan", "Kuadran", "Status", "Diperbarui"];
     const rows = enriched.map((d) => [d.nama, d.kategori, d.wilayah, d.namaPIC, d.influence, d.interest, d.quadrant, d.status, d.updatedAt]);
     const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
@@ -541,7 +541,7 @@ function StakeholderPage({ data, query, setQuery, onAdd, onEdit, onProfile, onDe
       )}
 
       <Toolbar>
-        <SearchInput value={query} onChange={setQuery} placeholder="Cari nama stakeholder, kategori, atau wilayah..." />
+        <SearchInput value={query} onChange={setQuery} placeholder="Cari nama stakeholder, kategori, atau alamat..." />
         <Btn onClick={onAdd}><span className="inline-flex items-center gap-1.5"><Plus size={15} /> Tambah Stakeholder</span></Btn>
       </Toolbar>
 
@@ -551,7 +551,7 @@ function StakeholderPage({ data, query, setQuery, onAdd, onEdit, onProfile, onDe
             <tr style={{ color: C.muted }}>
               <th className="text-left font-semibold py-2.5">Stakeholder</th>
               <th className="text-left font-semibold py-2.5">Kategori</th>
-              <th className="text-left font-semibold py-2.5">Wilayah</th>
+              <th className="text-left font-semibold py-2.5">Alamat</th>
               <th className="text-left font-semibold py-2.5">Pengaruh</th>
               <th className="text-left font-semibold py-2.5">Kepentingan</th>
               <th className="text-left font-semibold py-2.5">Status Data</th>
@@ -632,8 +632,8 @@ function StakeholderForm({ form, setForm, editing, onClose, onSubmit }) {
               {KATEGORI_LIST.map((k) => <option key={k}>{k}</option>)}
             </select>
           </Field>
-          <Field label="Wilayah">
-            <input value={form.wilayah} onChange={set("wilayah")} placeholder="Kecamatan" className={inputCls} style={inputStyle} />
+          <Field label="Alamat">
+            <input value={form.wilayah} onChange={set("wilayah")} placeholder="Alamat lengkap" className={inputCls} style={inputStyle} />
           </Field>
           <Field label="Nama PIC">
             <input value={form.namaPIC} onChange={set("namaPIC")} placeholder="Nama penanggung jawab" className={inputCls} style={inputStyle} />
@@ -641,9 +641,9 @@ function StakeholderForm({ form, setForm, editing, onClose, onSubmit }) {
           <Field label="Kontak PIC (opsional)">
             <input value={form.kontak} onChange={set("kontak")} placeholder="No. HP / email" className={inputCls} style={inputStyle} />
           </Field>
-          <div className="col-span-2 text-xs font-semibold pt-1" style={{ color: C.muted }}>Kepengurusan (opsional — untuk Parpol/Ormas)</div>
-          <Field label="Ketua">
-            <input value={form.ketua} onChange={set("ketua")} placeholder="Nama Ketua" className={inputCls} style={inputStyle} />
+          <div className="col-span-2 text-xs font-semibold pt-1" style={{ color: C.muted }}>Struktur Organisasi (opsional)</div>
+          <Field label="Ketua/Kepala/Pimpinan">
+            <input value={form.ketua} onChange={set("ketua")} placeholder="Nama Ketua/Kepala/Pimpinan" className={inputCls} style={inputStyle} />
           </Field>
           <Field label="Sekretaris">
             <input value={form.sekretaris} onChange={set("sekretaris")} placeholder="Nama Sekretaris" className={inputCls} style={inputStyle} />
@@ -690,10 +690,10 @@ function ProfileModal({ item, onClose }) {
       <hr className="my-5" style={{ borderColor: C.line }} />
       <div className="grid grid-cols-2 gap-3.5">
         <Field label="Kategori"><input readOnly value={item.kategori} className={inputCls} style={inputStyle} /></Field>
-        <Field label="Wilayah"><input readOnly value={item.wilayah || "-"} className={inputCls} style={inputStyle} /></Field>
+        <Field label="Alamat"><input readOnly value={item.wilayah || "-"} className={inputCls} style={inputStyle} /></Field>
         <Field label="Nama PIC"><input readOnly value={item.namaPIC || "-"} className={inputCls} style={inputStyle} /></Field>
         <Field label="Kontak PIC"><input readOnly value={item.kontak || "-"} className={inputCls} style={inputStyle} /></Field>
-        <Field label="Ketua"><input readOnly value={item.ketua || "-"} className={inputCls} style={inputStyle} /></Field>
+        <Field label="Ketua/Kepala/Pimpinan"><input readOnly value={item.ketua || "-"} className={inputCls} style={inputStyle} /></Field>
         <Field label="Sekretaris"><input readOnly value={item.sekretaris || "-"} className={inputCls} style={inputStyle} /></Field>
         <Field label="Bendahara"><input readOnly value={item.bendahara || "-"} className={inputCls} style={inputStyle} /></Field>
         <Field label="Pengaruh"><input readOnly value={`${item.influence} / 5`} className={inputCls} style={inputStyle} /></Field>
