@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   LayoutGrid, Building2, Grid2x2, ArrowLeftRight, FileText, LogOut,
   Search, Plus, Pencil, Trash2, ShieldCheck, AlertTriangle,
-  RefreshCw, Lock, Download, Printer,
+  RefreshCw, Lock, Download, Printer, Eye, EyeOff,
 } from "lucide-react";
 import {
   fetchAll, addRecord, updateRecord, deleteRecord, verifyRecord,
@@ -22,7 +22,7 @@ const TAG = {
   red: { bg: "#fdecec", fg: "#b42318" },
   blue: { bg: "#eaf0ff", fg: "#234f9b" },
 };
-const KATEGORI_LIST = ["Pemerintah", "Penyelenggara", "Akademisi", "Ormas/LSM", "Media", "Komunitas"];
+const KATEGORI_LIST = ["Pemerintah", "Penyelenggara", "Parpol", "Akademisi", "Ormas/LSM", "Media", "Komunitas"];
 const STATUS_TAG = { "Terverifikasi": "green", "Belum Verifikasi": "yellow", "Perlu Update": "red" };
 const QUADRANT_TAG = { "Prioritas Utama": "red", "Jaga Hubungan Strategis": "yellow", "Informasi & Pelibatan": "blue", "Pantau": "green" };
 const STALE_DAYS = 90;
@@ -44,7 +44,7 @@ function formatTanggal(dateStr) {
 }
 function initial(name) { return (name || "?").trim().charAt(0).toUpperCase(); }
 
-const emptyForm = { nama: "", kategori: KATEGORI_LIST[0], wilayah: "", namaPIC: "", kontak: "", influence: 3, interest: 3, isuKolaborasi: "" };
+const emptyForm = { nama: "", kategori: KATEGORI_LIST[0], wilayah: "", namaPIC: "", kontak: "", ketua: "", sekretaris: "", bendahara: "", influence: 3, interest: 3, isuKolaborasi: "" };
 const emptyKolabForm = { tanggal: new Date().toISOString().slice(0, 10), stakeholderId: "", kegiatan: "", hasil: "", status: "Tindak Lanjut", catatan: "" };
 
 const SEED = [
@@ -89,6 +89,7 @@ export default function App() {
 function LoginScreen({ onLoggedIn }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -116,7 +117,26 @@ function LoginScreen({ onLoggedIn }) {
           </div>
           <div className="mb-6">
             <label className="text-xs font-semibold block mb-1.5" style={{ color: C.muted }}>Password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border text-sm" style={{ borderColor: "#d6dbe2" }} required />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-3 py-2.5 pr-10 rounded-lg border text-sm"
+                style={{ borderColor: "#d6dbe2" }}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+                style={{ color: C.muted }}
+                aria-label={showPassword ? "Sembunyikan password" : "Lihat password"}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
           <button disabled={busy} className="w-full py-2.5 rounded-lg text-sm font-semibold text-white" style={{ backgroundColor: C.primary }}>{busy ? "Memeriksa…" : "Masuk"}</button>
         </form>
@@ -218,7 +238,7 @@ function Shell({ user, onLoggedOut }) {
   function openAdd() { setEditingId(null); setForm(emptyForm); setFormOpen(true); }
   function openEdit(item) {
     setEditingId(item.id);
-    setForm({ nama: item.nama, kategori: item.kategori, wilayah: item.wilayah || "", namaPIC: item.namaPIC || "", kontak: item.kontak || "", influence: item.influence, interest: item.interest, isuKolaborasi: item.isuKolaborasi || "" });
+    setForm({ nama: item.nama, kategori: item.kategori, wilayah: item.wilayah || "", namaPIC: item.namaPIC || "", kontak: item.kontak || "", ketua: item.ketua || "", sekretaris: item.sekretaris || "", bendahara: item.bendahara || "", influence: item.influence, interest: item.interest, isuKolaborasi: item.isuKolaborasi || "" });
     setFormOpen(true);
   }
   function closeForm() { setFormOpen(false); setEditingId(null); setForm(emptyForm); }
@@ -621,6 +641,16 @@ function StakeholderForm({ form, setForm, editing, onClose, onSubmit }) {
           <Field label="Kontak PIC (opsional)">
             <input value={form.kontak} onChange={set("kontak")} placeholder="No. HP / email" className={inputCls} style={inputStyle} />
           </Field>
+          <div className="col-span-2 text-xs font-semibold pt-1" style={{ color: C.muted }}>Kepengurusan (opsional — untuk Parpol/Ormas)</div>
+          <Field label="Ketua">
+            <input value={form.ketua} onChange={set("ketua")} placeholder="Nama Ketua" className={inputCls} style={inputStyle} />
+          </Field>
+          <Field label="Sekretaris">
+            <input value={form.sekretaris} onChange={set("sekretaris")} placeholder="Nama Sekretaris" className={inputCls} style={inputStyle} />
+          </Field>
+          <Field label="Bendahara">
+            <input value={form.bendahara} onChange={set("bendahara")} placeholder="Nama Bendahara" className={inputCls} style={inputStyle} />
+          </Field>
           <Field label="Pengaruh (1–5)">
             <select value={form.influence} onChange={set("influence")} className={inputCls} style={inputStyle}>
               {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
@@ -663,6 +693,9 @@ function ProfileModal({ item, onClose }) {
         <Field label="Wilayah"><input readOnly value={item.wilayah || "-"} className={inputCls} style={inputStyle} /></Field>
         <Field label="Nama PIC"><input readOnly value={item.namaPIC || "-"} className={inputCls} style={inputStyle} /></Field>
         <Field label="Kontak PIC"><input readOnly value={item.kontak || "-"} className={inputCls} style={inputStyle} /></Field>
+        <Field label="Ketua"><input readOnly value={item.ketua || "-"} className={inputCls} style={inputStyle} /></Field>
+        <Field label="Sekretaris"><input readOnly value={item.sekretaris || "-"} className={inputCls} style={inputStyle} /></Field>
+        <Field label="Bendahara"><input readOnly value={item.bendahara || "-"} className={inputCls} style={inputStyle} /></Field>
         <Field label="Pengaruh"><input readOnly value={`${item.influence} / 5`} className={inputCls} style={inputStyle} /></Field>
         <Field label="Kepentingan"><input readOnly value={`${item.interest} / 5`} className={inputCls} style={inputStyle} /></Field>
         <Field label="Isu/Potensi Kolaborasi" full><textarea readOnly rows={3} value={item.isuKolaborasi || "-"} className={inputCls} style={inputStyle} /></Field>
