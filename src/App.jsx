@@ -22,7 +22,7 @@ const TAG = {
   red: { bg: "#fdecec", fg: "#b42318" },
   blue: { bg: "#eaf0ff", fg: "#234f9b" },
 };
-const KATEGORI_LIST = ["Pemerintah", "Penyelenggara", "Parpol", "Akademisi", "Ormas/LSM", "Media", "Komunitas"];
+const KATEGORI_LIST = ["Pemerintah", "Penyelenggara", "Parpol", "Lembaga Pendidikan", "Ormas/LSM", "Media", "Komunitas"];
 const STATUS_TAG = { "Terverifikasi": "green", "Belum Verifikasi": "yellow", "Perlu Update": "red" };
 const QUADRANT_TAG = { "Prioritas Utama": "red", "Jaga Hubungan Strategis": "yellow", "Informasi & Pelibatan": "blue", "Pantau": "green" };
 const STALE_DAYS = 90;
@@ -50,7 +50,7 @@ const emptyKolabForm = { tanggal: new Date().toISOString().slice(0, 10), stakeho
 const SEED = [
   { nama: "KPU Kabupaten Ciamis", kategori: "Penyelenggara", wilayah: "Ciamis", namaPIC: "", kontak: "", influence: 5, interest: 5, isuKolaborasi: "Koordinasi kelembagaan, sinkronisasi data" },
   { nama: "Pemerintah Kabupaten Ciamis", kategori: "Pemerintah", wilayah: "Ciamis", namaPIC: "", kontak: "", influence: 5, interest: 4, isuKolaborasi: "Koordinasi lintas instansi" },
-  { nama: "Universitas Islam Darussalam", kategori: "Akademisi", wilayah: "Ciamis", namaPIC: "", kontak: "", influence: 4, interest: 5, isuKolaborasi: "Pendidikan pemilih, riset kepemiluan" },
+  { nama: "Universitas Islam Darussalam", kategori: "Lembaga Pendidikan", wilayah: "Ciamis", namaPIC: "", kontak: "", influence: 4, interest: 5, isuKolaborasi: "Pendidikan pemilih, riset kepemiluan" },
   { nama: "Media Lokal Ciamis", kategori: "Media", wilayah: "Ciamis", namaPIC: "", kontak: "", influence: 3, interest: 4, isuKolaborasi: "Publikasi dan diseminasi informasi" },
   { nama: "Kesbangpol Kabupaten Ciamis", kategori: "Pemerintah", wilayah: "Ciamis", namaPIC: "", kontak: "", influence: 4, interest: 3, isuKolaborasi: "Stabilitas politik lokal" },
   { nama: "Organisasi Pengawas Partisipatif", kategori: "Ormas/LSM", wilayah: "Ciamis", namaPIC: "", kontak: "", influence: 2, interest: 4, isuKolaborasi: "Pengawasan partisipatif" },
