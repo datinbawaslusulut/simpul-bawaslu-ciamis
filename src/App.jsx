@@ -44,7 +44,7 @@ function formatTanggal(dateStr) {
 }
 function initial(name) { return (name || "?").trim().charAt(0).toUpperCase(); }
 
-const emptyForm = { nama: "", kategori: KATEGORI_LIST[0], wilayah: "", namaPIC: "", kontak: "", ketua: "", sekretaris: "", bendahara: "", influence: 3, interest: 3, isuKolaborasi: "" };
+const emptyForm = { nama: "", kategori: KATEGORI_LIST[0], wilayah: "", namaPIC: "", kontak: "", ketua: "", sekretaris: "", bendahara: "", skKepengurusan: "", namaLO: "", kontakLO: "", influence: 3, interest: 3, isuKolaborasi: "" };
 const emptyKolabForm = { tanggal: new Date().toISOString().slice(0, 10), stakeholderId: "", kegiatan: "", hasil: "", status: "Tindak Lanjut", catatan: "" };
 
 const SEED = [
@@ -238,7 +238,7 @@ function Shell({ user, onLoggedOut }) {
   function openAdd() { setEditingId(null); setForm(emptyForm); setFormOpen(true); }
   function openEdit(item) {
     setEditingId(item.id);
-    setForm({ nama: item.nama, kategori: item.kategori, wilayah: item.wilayah || "", namaPIC: item.namaPIC || "", kontak: item.kontak || "", ketua: item.ketua || "", sekretaris: item.sekretaris || "", bendahara: item.bendahara || "", influence: item.influence, interest: item.interest, isuKolaborasi: item.isuKolaborasi || "" });
+    setForm({ nama: item.nama, kategori: item.kategori, wilayah: item.wilayah || "", namaPIC: item.namaPIC || "", kontak: item.kontak || "", ketua: item.ketua || "", sekretaris: item.sekretaris || "", bendahara: item.bendahara || "", skKepengurusan: item.skKepengurusan || "", namaLO: item.namaLO || "", kontakLO: item.kontakLO || "", influence: item.influence, interest: item.interest, isuKolaborasi: item.isuKolaborasi || "" });
     setFormOpen(true);
   }
   function closeForm() { setFormOpen(false); setEditingId(null); setForm(emptyForm); }
@@ -651,6 +651,20 @@ function StakeholderForm({ form, setForm, editing, onClose, onSubmit }) {
           <Field label="Bendahara">
             <input value={form.bendahara} onChange={set("bendahara")} placeholder="Nama Bendahara" className={inputCls} style={inputStyle} />
           </Field>
+          {form.kategori === "Parpol" && (
+            <>
+              <div className="col-span-2 text-xs font-semibold pt-2" style={{ color: TAG.blue.fg }}>Data Khusus Partai Politik</div>
+              <Field label="Nomor SK Kepengurusan (Kemenkumham)">
+                <input value={form.skKepengurusan} onChange={set("skKepengurusan")} placeholder="Contoh: AHU-0001234.AH.11.01 Tahun 2023" className={inputCls} style={inputStyle} />
+              </Field>
+              <Field label="Nama LO (Liaison Officer)">
+                <input value={form.namaLO} onChange={set("namaLO")} placeholder="Nama penghubung resmi partai" className={inputCls} style={inputStyle} />
+              </Field>
+              <Field label="Nomor HP LO" full>
+                <input value={form.kontakLO} onChange={set("kontakLO")} placeholder="Nomor HP yang bisa dihubungi" className={inputCls} style={inputStyle} />
+              </Field>
+            </>
+          )}
           <Field label="Pengaruh (1–5)">
             <select value={form.influence} onChange={set("influence")} className={inputCls} style={inputStyle}>
               {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
@@ -696,6 +710,13 @@ function ProfileModal({ item, onClose }) {
         <Field label="Ketua/Kepala/Pimpinan"><input readOnly value={item.ketua || "-"} className={inputCls} style={inputStyle} /></Field>
         <Field label="Sekretaris"><input readOnly value={item.sekretaris || "-"} className={inputCls} style={inputStyle} /></Field>
         <Field label="Bendahara"><input readOnly value={item.bendahara || "-"} className={inputCls} style={inputStyle} /></Field>
+        {item.kategori === "Parpol" && (
+          <>
+            <Field label="Nomor SK Kepengurusan (Kemenkumham)"><input readOnly value={item.skKepengurusan || "-"} className={inputCls} style={inputStyle} /></Field>
+            <Field label="Nama LO (Liaison Officer)"><input readOnly value={item.namaLO || "-"} className={inputCls} style={inputStyle} /></Field>
+            <Field label="Nomor HP LO"><input readOnly value={item.kontakLO || "-"} className={inputCls} style={inputStyle} /></Field>
+          </>
+        )}
         <Field label="Pengaruh"><input readOnly value={`${item.influence} / 5`} className={inputCls} style={inputStyle} /></Field>
         <Field label="Kepentingan"><input readOnly value={`${item.interest} / 5`} className={inputCls} style={inputStyle} /></Field>
         <Field label="Isu/Potensi Kolaborasi" full><textarea readOnly rows={3} value={item.isuKolaborasi || "-"} className={inputCls} style={inputStyle} /></Field>
