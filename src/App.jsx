@@ -2,12 +2,13 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   LayoutGrid, Building2, Grid2x2, ArrowLeftRight, FileText, LogOut,
   Search, Plus, Pencil, Trash2, ShieldCheck, AlertTriangle,
-  RefreshCw, Lock, Download, Printer, Eye, EyeOff,
+  RefreshCw, Lock, Download, Printer, Eye, EyeOff, Users,
 } from "lucide-react";
 import {
   fetchAll, addRecord, updateRecord, deleteRecord, verifyRecord,
   addKolaborasi, updateKolaborasi, deleteKolaborasi,
   login, logout, getSavedSession, APPS_SCRIPT_URL,
+  listUsers, addUser, updateUser, resetPassword, deleteUser,
 } from "./storage.js";
 
 // ---------- Palet warna & konstanta (mengikuti acuan desain) ----------
@@ -152,7 +153,9 @@ const NAV_ITEMS = [
   { key: "mapping", label: "Pemetaan Stakeholder", icon: Grid2x2, title: "Pemetaan Stakeholder" },
   { key: "collab", label: "Kolaborasi", icon: ArrowLeftRight, title: "Kolaborasi" },
   { key: "report", label: "Laporan", icon: FileText, title: "Laporan" },
+  { key: "users", label: "Pengguna", icon: Users, title: "Manajemen Pengguna", adminOnly: true },
 ];
+const ROLE_LABEL = { operator: "Operator", verifikator: "Verifikator", admin: "Admin" };
 
 function Shell({ user, onLoggedOut }) {
   const [page, setPage] = useState("dashboard");
@@ -179,7 +182,8 @@ function Shell({ user, onLoggedOut }) {
   const [kolabForm, setKolabForm] = useState(emptyKolabForm);
   const [confirmDeleteKolabId, setConfirmDeleteKolabId] = useState(null);
 
-  const isVerifikator = user.role === "verifikator";
+  const isAdmin = user.role === "admin";
+  const isVerifikator = user.role === "verifikator" || isAdmin; // admin punya semua hak verifikator
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
@@ -318,7 +322,7 @@ function Shell({ user, onLoggedOut }) {
             <div className="text-[10px] mt-1 opacity-70 leading-snug">Sistem Informasi Manajemen Pemutakhiran Data Stakeholder</div>
           </div>
           <nav className="px-3">
-            {NAV_ITEMS.map((it) => {
+            {NAV_ITEMS.filter((it) => !it.adminOnly || isAdmin).map((it) => {
               const Icon = it.icon; const active = page === it.key;
               return (
                 <button key={it.key} onClick={() => { setPage(it.key); setReportFilter(null); }}
@@ -337,7 +341,7 @@ function Shell({ user, onLoggedOut }) {
               {isVerifikator ? <ShieldCheck size={13} style={{ color: C.accent }} /> : <Pencil size={13} style={{ color: "#9db3d6" }} />}
               <span className="text-sm font-semibold">{user.nama}</span>
             </div>
-            <div className="text-xs mb-3" style={{ color: "#9db3d6" }}>{isVerifikator ? "Verifikator" : "Operator"}</div>
+            <div className="text-xs mb-3" style={{ color: "#9db3d6" }}>{ROLE_LABEL[user.role] || "Operator"}</div>
             <button onClick={handleLogout} className="flex items-center gap-1.5 text-xs" style={{ color: "#9db3d6" }}><LogOut size={12} /> Keluar</button>
           </div>
         </aside>
@@ -359,7 +363,9 @@ function Shell({ user, onLoggedOut }) {
               </div>
             )}
 
-            {loading ? (
+            {page === "users" && isAdmin ? (
+              <UsersPage currentUser={user} />
+            ) : loading ? (
               <div className="text-sm" style={{ color: C.muted }}>Memuat data dari Google Sheets…</div>
             ) : stakeholders.length === 0 ? (
               <div>
@@ -864,6 +870,205 @@ function KolaborasiForm({ form, setForm, stakeholders, editing, onClose, onSubmi
         <div className="flex justify-end gap-2 mt-5">
           <Btn variant="secondary" onClick={onClose}>Batal</Btn>
           <button type="submit" className="rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: C.primary }}>Simpan</button>
+        </div>
+      </form>
+    </ModalShell>
+  );
+}
+
+// ---------- Manajemen Pengguna (khusus Admin) ----------
+
+const ROLE_OPTIONS = [
+  { value: "operator", label: "Operator", desc: "Input & ubah data (perlu diverifikasi)" },
+  { value: "verifikator", label: "Verifikator", desc: "Verifikasi & hapus data" },
+  { value: "admin", label: "Admin", desc: "Semua akses + kelola pengguna" },
+];
+const ROLE_TAG = { operator: "blue", verifikator: "yellow", admin: "green" };
+const emptyUserForm = { username: "", nama: "", role: "operator", password: "" };
+
+function randomPassword(len = 8) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const arr = new Uint32Array(len);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (n) => chars[n % chars.length]).join("");
+}
+
+function UsersPage({ currentUser }) {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [query, setQuery] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingUsername, setEditingUsername] = useState(null);
+  const [form, setForm] = useState(emptyUserForm);
+  const [resetTarget, setResetTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true); setError("");
+    try { setUsers(await listUsers()); }
+    catch (e) { setError(e.message || "Gagal memuat pengguna"); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const shown = useMemo(() => {
+    if (!query.trim()) return users;
+    const q = query.toLowerCase();
+    return users.filter((u) => [u.username, u.nama, u.role].join(" ").toLowerCase().includes(q));
+  }, [users, query]);
+
+  function openAdd() { setEditingUsername(null); setForm({ ...emptyUserForm, password: randomPassword() }); setFormOpen(true); setNotice(""); }
+  function openEdit(u) { setEditingUsername(u.username); setForm({ username: u.username, nama: u.nama, role: u.role, password: "" }); setFormOpen(true); setNotice(""); }
+  function closeForm() { setFormOpen(false); setEditingUsername(null); setForm(emptyUserForm); }
+
+  async function submitForm(e) {
+    e.preventDefault();
+    setBusy(true); setError("");
+    try {
+      if (editingUsername) {
+        await updateUser(editingUsername, { nama: form.nama.trim(), role: form.role });
+        setNotice(`Data pengguna "${editingUsername}" berhasil diperbarui.`);
+      } else {
+        await addUser({ username: form.username.trim(), nama: form.nama.trim(), role: form.role, password: form.password });
+        setNotice(`Pengguna "${form.username.trim()}" ditambahkan. Berikan password awal ini kepadanya: ${form.password}`);
+      }
+      closeForm(); await load();
+    } catch (e2) { setError(e2.message); }
+    finally { setBusy(false); }
+  }
+
+  async function submitReset(password) {
+    setBusy(true); setError("");
+    try {
+      await resetPassword(resetTarget.username, password);
+      setNotice(`Password "${resetTarget.username}" direset. Password baru: ${password}. Pengguna tersebut harus login ulang.`);
+      setResetTarget(null);
+    } catch (e) { setError(e.message); }
+    finally { setBusy(false); }
+  }
+
+  async function doDelete() {
+    setBusy(true); setError("");
+    try {
+      await deleteUser(deleteTarget.username);
+      setNotice(`Pengguna "${deleteTarget.username}" dihapus.`);
+      setDeleteTarget(null); await load();
+    } catch (e) { setError(e.message); setDeleteTarget(null); }
+    finally { setBusy(false); }
+  }
+
+  const isSelf = (u) => u.username === currentUser.username;
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-1.5">Manajemen Pengguna</h1>
+      <div className="text-sm mb-6" style={{ color: C.muted }}>Tambah, ubah, hapus akun, reset password, dan atur peran pengguna SIMPUL.</div>
+
+      {error && <div className="mb-4 px-4 py-3 rounded-lg flex items-center gap-2 text-sm" style={{ backgroundColor: TAG.red.bg, color: TAG.red.fg }}><AlertTriangle size={16} /> {error}</div>}
+      {notice && (
+        <div className="mb-4 px-4 py-3 rounded-lg flex items-start justify-between gap-3 text-sm" style={{ backgroundColor: TAG.green.bg, color: TAG.green.fg }}>
+          <span className="break-all">{notice}</span>
+          <button onClick={() => setNotice("")} className="font-semibold underline shrink-0">Tutup</button>
+        </div>
+      )}
+
+      <Toolbar>
+        <SearchInput value={query} onChange={setQuery} placeholder="Cari username, nama, atau role..." />
+        <Btn onClick={openAdd}><span className="inline-flex items-center gap-1.5"><Plus size={15} /> Tambah Pengguna</span></Btn>
+      </Toolbar>
+
+      <Panel>
+        {loading ? (
+          <div className="text-sm" style={{ color: C.muted }}>Memuat pengguna…</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead><tr style={{ color: C.muted }}>
+              <th className="text-left font-semibold py-2.5">Nama</th>
+              <th className="text-left font-semibold py-2.5">Username</th>
+              <th className="text-left font-semibold py-2.5">Role</th>
+              <th></th>
+            </tr></thead>
+            <tbody>
+              {shown.map((u) => (
+                <tr key={u.username} style={{ borderTop: `1px solid ${C.line}` }}>
+                  <td className="py-3 font-bold">{u.nama}{isSelf(u) && <span className="ml-2 text-xs font-normal" style={{ color: C.muted }}>(Anda)</span>}</td>
+                  <td className="py-3">{u.username}</td>
+                  <td className="py-3"><Tag color={ROLE_TAG[u.role] || "blue"}>{(ROLE_OPTIONS.find((r) => r.value === u.role) || {}).label || u.role}</Tag></td>
+                  <td className="py-3">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button onClick={() => openEdit(u)} className="p-1.5 rounded-lg hover:bg-black/5" aria-label="Ubah" title="Ubah nama / role"><Pencil size={15} style={{ color: C.muted }} /></button>
+                      <button onClick={() => setResetTarget(u)} className="p-1.5 rounded-lg hover:bg-black/5" aria-label="Reset password" title="Reset password"><Lock size={15} style={{ color: C.muted }} /></button>
+                      {!isSelf(u) && <button onClick={() => setDeleteTarget(u)} className="p-1.5 rounded-lg hover:bg-black/5" aria-label="Hapus" title="Hapus pengguna"><Trash2 size={15} style={{ color: C.muted }} /></button>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {shown.length === 0 && <tr><td colSpan={4} className="py-10 text-center text-sm" style={{ color: C.muted }}>Tidak ada pengguna.</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </Panel>
+
+      {formOpen && (
+        <ModalShell title={editingUsername ? "Ubah Pengguna" : "Tambah Pengguna"} onClose={closeForm}>
+          <form onSubmit={submitForm}>
+            <div className="grid gap-3.5">
+              <Field label="Username">
+                <input required disabled={!!editingUsername} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })}
+                  placeholder="contoh: budi.staf" className={inputCls} style={inputStyle} />
+              </Field>
+              <Field label="Nama lengkap">
+                <input required value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} className={inputCls} style={inputStyle} />
+              </Field>
+              <Field label="Role">
+                <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} disabled={editingUsername && editingUsername === currentUser.username} className={inputCls} style={inputStyle}>
+                  {ROLE_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label} — {r.desc}</option>)}
+                </select>
+                {editingUsername === currentUser.username && <p className="text-xs mt-1" style={{ color: C.muted }}>Role akun Anda sendiri tidak dapat diubah.</p>}
+              </Field>
+              {!editingUsername && (
+                <Field label="Password awal (min. 6 karakter)">
+                  <div className="flex gap-2">
+                    <input required minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={inputCls} style={inputStyle} />
+                    <Btn variant="secondary" onClick={() => setForm({ ...form, password: randomPassword() })}>Acak</Btn>
+                  </div>
+                </Field>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <Btn variant="secondary" onClick={closeForm}>Batal</Btn>
+              <button type="submit" disabled={busy} className="rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: C.primary }}>{busy ? "Menyimpan…" : "Simpan"}</button>
+            </div>
+          </form>
+        </ModalShell>
+      )}
+
+      {resetTarget && <ResetPasswordDialog user={resetTarget} busy={busy} onClose={() => setResetTarget(null)} onSubmit={submitReset} />}
+
+      {deleteTarget && (
+        <ConfirmDialog title="Hapus pengguna ini?" desc={`Akun "${deleteTarget.username}" (${deleteTarget.nama}) akan dihapus dan tidak bisa login lagi.`}
+          onCancel={() => setDeleteTarget(null)} onConfirm={doDelete} />
+      )}
+    </div>
+  );
+}
+
+function ResetPasswordDialog({ user, busy, onClose, onSubmit }) {
+  const [password, setPassword] = useState(randomPassword());
+  return (
+    <ModalShell title="Reset Password" sub={`${user.nama} (${user.username})`} onClose={onClose}>
+      <form onSubmit={(e) => { e.preventDefault(); onSubmit(password); }}>
+        <FieldLabel>Password baru (min. 6 karakter)</FieldLabel>
+        <div className="flex gap-2 mb-5">
+          <input required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} style={inputStyle} />
+          <Btn variant="secondary" onClick={() => setPassword(randomPassword())}>Acak</Btn>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Btn variant="secondary" onClick={onClose}>Batal</Btn>
+          <button type="submit" disabled={busy} className="rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: C.primary }}>{busy ? "Menyimpan…" : "Reset Password"}</button>
         </div>
       </form>
     </ModalShell>
