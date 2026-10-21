@@ -90,3 +90,28 @@ export async function deleteKolaborasi(id) {
   const json = await callApi("deleteKolaborasi", { token: requireToken(), id });
   if (!json.ok) throw new Error(json.error || "Gagal menghapus catatan");
 }
+
+// ---- Manajemen Pengguna (khusus Admin) ----
+export async function listUsers() {
+  const json = await callApi("listUsers", { token: requireToken() });
+  if (!json.ok) throw new Error(json.error || "Gagal memuat pengguna");
+  return json.users;
+}
+export async function addUser(data) {
+  const json = await callApi("addUser", { token: requireToken(), data });
+  if (!json.ok) throw new Error(json.error || "Gagal menambah pengguna");
+  return json.data;
+}
+export async function updateUser(username, data) {
+  const json = await callApi("updateUser", { token: requireToken(), username, data });
+  if (!json.ok) throw new Error(json.error || "Gagal menyimpan perubahan pengguna");
+  return json.data;
+}
+export async function resetPassword(username, password) {
+  const json = await callApi("resetPassword", { token: requireToken(), username, password });
+  if (!json.ok) throw new Error(json.error || "Gagal mereset password");
+}
+export async function deleteUser(username) {
+  const json = await callApi("deleteUser", { token: requireToken(), username });
+  if (!json.ok) throw new Error(json.error || "Gagal menghapus pengguna");
+}
