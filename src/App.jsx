@@ -299,9 +299,10 @@ function Shell({ user, onLoggedOut }) {
     finally { setSaving(false); setConfirmDeleteKolabId(null); }
   }
 
-  function exportCsv() {
-    const header = ["Nama", "Kategori", "Alamat", "PIC", "Pengaruh", "Kepentingan", "Kuadran", "Status", "Diperbarui"];
-    const rows = enriched.map((d) => [d.nama, d.kategori, d.wilayah, d.namaPIC, d.influence, d.interest, d.quadrant, d.status, d.updatedAt]);
+  function exportCsv(list) {
+    const data = Array.isArray(list) ? list : enriched;
+    const header = ["Nama", "Kategori", "Alamat", "PIC", "Kontak PIC", "Ketua", "Sekretaris", "Bendahara", "No. SK Kepengurusan", "Nama LO", "HP LO", "Pengaruh", "Kepentingan", "Kuadran", "Status Data", "Catatan Verifikasi", "Diperbarui"];
+    const rows = data.map((d) => [d.nama, d.kategori, d.wilayah, d.namaPIC, d.kontak, d.ketua, d.sekretaris, d.bendahara, d.skKepengurusan, d.namaLO, d.kontakLO, d.influence, d.interest, d.quadrant, d.status, d.catatanVerifikasi, d.updatedAt]);
     const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -314,7 +315,12 @@ function Shell({ user, onLoggedOut }) {
 
   return (
     <div style={{ fontFamily: "Inter, 'Segoe UI', Arial, sans-serif", backgroundColor: C.bg, color: C.text, minHeight: "100vh" }}>
-      <style>{`@media print { .no-print { display:none !important; } }`}</style>
+      <style>{`@page { size: A4 landscape; margin: 12mm; }
+@media print {
+  .no-print { display:none !important; }
+  .print-area { border: none !important; padding: 0 !important; margin: 0 !important; }
+  .print-area * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}`}</style>
       <div className="flex min-h-screen">
         <aside className="no-print w-60 shrink-0 hidden md:block" style={{ backgroundColor: C.primaryDark, color: "#fff" }}>
           <div className="p-6">
@@ -391,7 +397,7 @@ function Shell({ user, onLoggedOut }) {
                 isVerifikator={isVerifikator}
               />
             ) : (
-              <ReportPage stats={stats} onPreview={(f) => { setReportFilter(f); setPage("stakeholder"); }} onExportCsv={exportCsv} />
+              <ReportPage stats={stats} enriched={enriched} userName={user.nama} onPreview={(f) => { setReportFilter(f); setPage("stakeholder"); }} onExportCsv={exportCsv} />
             )}
           </div>
         </main>
@@ -478,6 +484,51 @@ function Btn({ children, onClick, variant = "primary", type = "button", disabled
   );
 }
 
+// ---------- Paginasi ----------
+
+const PAGE_SIZES = [10, 25, 50];
+
+function usePagination(items, resetKey) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  useEffect(() => { setPage(1); }, [resetKey, pageSize]);
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const current = Math.min(page, totalPages);
+  const pageItems = useMemo(() => items.slice((current - 1) * pageSize, current * pageSize), [items, current, pageSize]);
+  return { page: current, setPage, pageSize, setPageSize, totalPages, pageItems, total: items.length };
+}
+
+function pageNumbers(current, total) {
+  const nums = [...new Set([1, total, current - 1, current, current + 1])].filter((n) => n >= 1 && n <= total).sort((a, b) => a - b);
+  const out = [];
+  nums.forEach((n, i) => { if (i > 0 && n - nums[i - 1] > 1) out.push("…" + n); out.push(n); });
+  return out;
+}
+
+function Pagination({ p }) {
+  if (p.total === 0) return null;
+  const from = (p.page - 1) * p.pageSize + 1;
+  const to = Math.min(p.page * p.pageSize, p.total);
+  const btn = "min-w-[34px] h-[34px] px-2 rounded-lg text-sm font-semibold";
+  return (
+    <div className="no-print flex flex-wrap items-center justify-between gap-3 mt-4 pt-4" style={{ borderTop: `1px solid ${C.line}` }}>
+      <div className="flex items-center gap-3 text-sm" style={{ color: C.muted }}>
+        <span>Menampilkan {from}–{to} dari {p.total}</span>
+        <select value={p.pageSize} onChange={(e) => p.setPageSize(Number(e.target.value))} className="px-2 py-1 rounded-lg border text-sm" style={{ borderColor: "#d6dbe2" }} aria-label="Baris per halaman">
+          {PAGE_SIZES.map((n) => <option key={n} value={n}>{n} / halaman</option>)}
+        </select>
+      </div>
+      <div className="flex items-center gap-1">
+        <button disabled={p.page <= 1} onClick={() => p.setPage(p.page - 1)} className={btn} style={{ backgroundColor: "#eef2f7", color: C.primary, opacity: p.page <= 1 ? 0.4 : 1 }}>‹ Sebelumnya</button>
+        {pageNumbers(p.page, p.totalPages).map((n) => typeof n === "string"
+          ? <span key={n} className="px-1" style={{ color: C.muted }}>…</span>
+          : <button key={n} onClick={() => p.setPage(n)} className={btn} style={n === p.page ? { backgroundColor: C.primary, color: "#fff" } : { backgroundColor: "#eef2f7", color: C.primary }}>{n}</button>)}
+        <button disabled={p.page >= p.totalPages} onClick={() => p.setPage(p.page + 1)} className={btn} style={{ backgroundColor: "#eef2f7", color: C.primary, opacity: p.page >= p.totalPages ? 0.4 : 1 }}>Berikutnya ›</button>
+      </div>
+    </div>
+  );
+}
+
 // ---------- Dashboard ----------
 
 function DashboardPage({ stats, enriched, setPage, setReportFilter }) {
@@ -534,6 +585,7 @@ function DashboardPage({ stats, enriched, setPage, setReportFilter }) {
 // ---------- Data Stakeholder ----------
 
 function StakeholderPage({ data, query, setQuery, onAdd, onEdit, onProfile, onDelete, onVerify, isVerifikator, reportFilter, clearFilter }) {
+  const p = usePagination(data, query + "|" + reportFilter);
   return (
     <div>
       <h1 className="text-2xl font-bold mb-1.5">Data Stakeholder</h1>
@@ -565,7 +617,7 @@ function StakeholderPage({ data, query, setQuery, onAdd, onEdit, onProfile, onDe
             </tr>
           </thead>
           <tbody>
-            {data.map((d) => (
+            {p.pageItems.map((d) => (
               <tr key={d.id} style={{ borderTop: `1px solid ${C.line}` }}>
                 <td className="py-3 font-bold">{d.nama}</td>
                 <td className="py-3">{d.kategori}</td>
@@ -593,6 +645,7 @@ function StakeholderPage({ data, query, setQuery, onAdd, onEdit, onProfile, onDe
             {data.length === 0 && <tr><td colSpan={7} className="py-10 text-center text-sm" style={{ color: C.muted }}>Tidak ada stakeholder yang cocok.</td></tr>}
           </tbody>
         </table>
+        <Pagination p={p} />
       </Panel>
     </div>
   );
@@ -813,6 +866,8 @@ function MappingPage({ enriched, stats }) {
 // ---------- Kolaborasi ----------
 
 function CollabPage({ data, query, setQuery, onAdd, onDelete, isVerifikator }) {
+  const sorted = useMemo(() => [...data].sort((a, b) => String(b.tanggal).localeCompare(String(a.tanggal))), [data]);
+  const p = usePagination(sorted, query);
   return (
     <div>
       <h1 className="text-2xl font-bold mb-1.5">Kolaborasi</h1>
@@ -825,7 +880,7 @@ function CollabPage({ data, query, setQuery, onAdd, onDelete, isVerifikator }) {
         <table className="w-full text-sm">
           <thead><tr style={{ color: C.muted }}><th className="text-left font-semibold py-2.5">Tanggal</th><th className="text-left font-semibold py-2.5">Stakeholder</th><th className="text-left font-semibold py-2.5">Kegiatan</th><th className="text-left font-semibold py-2.5">Hasil</th><th className="text-left font-semibold py-2.5">Status</th><th></th></tr></thead>
           <tbody>
-            {data.map((k) => (
+            {p.pageItems.map((k) => (
               <tr key={k.id} style={{ borderTop: `1px solid ${C.line}` }}>
                 <td className="py-3">{formatTanggal(k.tanggal)}</td>
                 <td className="py-3 font-semibold">{k.stakeholderNama}</td>
@@ -840,6 +895,7 @@ function CollabPage({ data, query, setQuery, onAdd, onDelete, isVerifikator }) {
             {data.length === 0 && <tr><td colSpan={6} className="py-10 text-center text-sm" style={{ color: C.muted }}>Belum ada riwayat kolaborasi.</td></tr>}
           </tbody>
         </table>
+        <Pagination p={p} />
       </Panel>
     </div>
   );
@@ -1077,40 +1133,120 @@ function ResetPasswordDialog({ user, busy, onClose, onSubmit }) {
 
 // ---------- Laporan ----------
 
-function ReportPage({ stats, onPreview, onExportCsv }) {
+function ReportPage({ stats, enriched, userName, onPreview, onExportCsv }) {
+  const [fKategori, setFKategori] = useState("Semua");
+  const [fKuadran, setFKuadran] = useState("Semua");
+  const [fStatus, setFStatus] = useState("Semua");
+
+  const rows = useMemo(() => enriched.filter((d) =>
+    (fKategori === "Semua" || d.kategori === fKategori) &&
+    (fKuadran === "Semua" || d.quadrant === fKuadran) &&
+    (fStatus === "Semua" || (d.status || "Belum Verifikasi") === fStatus)
+  ), [enriched, fKategori, fKuadran, fStatus]);
+
+  const sum = useMemo(() => {
+    const s = { "Terverifikasi": 0, "Belum Verifikasi": 0, "Perlu Update": 0 };
+    rows.forEach((d) => { s[d.status || "Belum Verifikasi"] = (s[d.status || "Belum Verifikasi"] || 0) + 1; });
+    return s;
+  }, [rows]);
+
+  const today = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+  const selectCls = "w-full px-3 py-2.5 rounded-lg border text-sm bg-white";
+  const th = "text-left font-semibold py-2 px-2";
+  const td = "py-2 px-2 align-top";
+
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-1.5">Laporan</h1>
-      <div className="text-sm mb-6" style={{ color: C.muted }}>Output informasi strategis untuk kebutuhan pimpinan dan pelaporan.</div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="rounded-2xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
-          <div className="text-sm" style={{ color: C.muted }}>Daftar Stakeholder</div>
-          <div className="text-3xl font-extrabold my-2">{stats.total}</div>
-          <Btn variant="secondary" onClick={() => onPreview(null)}>Preview</Btn>
+      <div className="no-print">
+        <h1 className="text-2xl font-bold mb-1.5">Laporan</h1>
+        <div className="text-sm mb-6" style={{ color: C.muted }}>Output informasi strategis untuk kebutuhan pimpinan dan pelaporan.</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="rounded-2xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
+            <div className="text-sm" style={{ color: C.muted }}>Daftar Stakeholder</div>
+            <div className="text-3xl font-extrabold my-2">{stats.total}</div>
+            <Btn variant="secondary" onClick={() => onPreview(null)}>Lihat Data</Btn>
+          </div>
+          <div className="rounded-2xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
+            <div className="text-sm" style={{ color: C.muted }}>Stakeholder Prioritas</div>
+            <div className="text-3xl font-extrabold my-2">{stats.prioritas}</div>
+            <Btn variant="secondary" onClick={() => onPreview("prioritas")}>Lihat Data</Btn>
+          </div>
+          <div className="rounded-2xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
+            <div className="text-sm" style={{ color: C.muted }}>Perlu Pemutakhiran</div>
+            <div className="text-3xl font-extrabold my-2">{stats.perluUpdate}</div>
+            <Btn variant="secondary" onClick={() => onPreview("update")}>Lihat Data</Btn>
+          </div>
+          <div className="rounded-2xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
+            <div className="text-sm" style={{ color: C.muted }}>Kolaborasi Aktif</div>
+            <div className="text-3xl font-extrabold my-2">{stats.kolaborasiAktif}</div>
+          </div>
         </div>
-        <div className="rounded-2xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
-          <div className="text-sm" style={{ color: C.muted }}>Stakeholder Prioritas</div>
-          <div className="text-3xl font-extrabold my-2">{stats.prioritas}</div>
-          <Btn variant="secondary" onClick={() => onPreview("prioritas")}>Preview</Btn>
-        </div>
-        <div className="rounded-2xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
-          <div className="text-sm" style={{ color: C.muted }}>Perlu Pemutakhiran</div>
-          <div className="text-3xl font-extrabold my-2">{stats.perluUpdate}</div>
-          <Btn variant="secondary" onClick={() => onPreview("update")}>Preview</Btn>
-        </div>
-        <div className="rounded-2xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
-          <div className="text-sm" style={{ color: C.muted }}>Kolaborasi Aktif</div>
-          <div className="text-3xl font-extrabold my-2">{stats.kolaborasiAktif}</div>
-          <Btn variant="secondary" onClick={() => {}}>Preview</Btn>
-        </div>
+
+        <Panel title="Cetak / Export Laporan Stakeholder" style={{ marginTop: 18 }}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+            <Field label="Kategori stakeholder">
+              <select value={fKategori} onChange={(e) => setFKategori(e.target.value)} className={selectCls} style={inputStyle}>
+                <option>Semua</option>{KATEGORI_LIST.map((k) => <option key={k}>{k}</option>)}
+              </select>
+            </Field>
+            <Field label="Kuadran pemetaan">
+              <select value={fKuadran} onChange={(e) => setFKuadran(e.target.value)} className={selectCls} style={inputStyle}>
+                <option>Semua</option>{Object.keys(QUADRANT_TAG).map((k) => <option key={k}>{k}</option>)}
+              </select>
+            </Field>
+            <Field label="Status verifikasi">
+              <select value={fStatus} onChange={(e) => setFStatus(e.target.value)} className={selectCls} style={inputStyle}>
+                <option>Semua</option>{Object.keys(STATUS_TAG).map((k) => <option key={k}>{k}</option>)}
+              </select>
+            </Field>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5 mt-4">
+            <Btn variant="gold" onClick={() => window.print()} disabled={rows.length === 0}><span className="inline-flex items-center gap-1.5"><Printer size={15} /> Cetak / Simpan PDF</span></Btn>
+            <Btn onClick={() => onExportCsv(rows)} disabled={rows.length === 0}><span className="inline-flex items-center gap-1.5"><Download size={15} /> Export Excel (CSV)</span></Btn>
+            <span className="text-sm" style={{ color: C.muted }}>{rows.length} stakeholder sesuai filter</span>
+          </div>
+          <p className="text-xs mt-3" style={{ color: C.muted }}>Tombol cetak hanya mencetak laporan di bawah ini. Pada dialog cetak pilih "Save as PDF" untuk menyimpan sebagai PDF.</p>
+        </Panel>
       </div>
-      <Panel title="Export" style={{ marginTop: 18 }}>
-        <div className="flex gap-2.5">
-          <Btn onClick={onExportCsv}><span className="inline-flex items-center gap-1.5"><Download size={15} /> Export Excel (CSV)</span></Btn>
-          <Btn variant="gold" onClick={() => window.print()}><span className="inline-flex items-center gap-1.5"><Printer size={15} /> Export PDF (Cetak)</span></Btn>
+
+      <div className="print-area rounded-2xl p-5 mt-4" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
+        <div className="text-center mb-4">
+          <div className="text-lg font-bold">LAPORAN DATA STAKEHOLDER</div>
+          <div className="text-sm font-semibold">Sekretariat Bawaslu Kabupaten Ciamis — SIMPUL</div>
         </div>
-        <p className="text-xs mt-3" style={{ color: C.muted }}>Export PDF membuka dialog cetak browser — pilih "Save as PDF" sebagai tujuan cetak.</p>
-      </Panel>
+        <div className="text-xs mb-3 leading-relaxed">
+          <div><b>Filter:</b> Kategori: {fKategori} · Kuadran: {fKuadran} · Status: {fStatus}</div>
+          <div><b>Ringkasan:</b> {rows.length} stakeholder — Terverifikasi {sum["Terverifikasi"]}, Belum Verifikasi {sum["Belum Verifikasi"]}, Perlu Update {sum["Perlu Update"]}</div>
+          <div><b>Dicetak:</b> {today}{userName ? ` oleh ${userName}` : ""}</div>
+        </div>
+        <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ backgroundColor: "#eef2f7", borderBottom: `1px solid ${C.line}` }}>
+              <th className={th}>No</th><th className={th}>Stakeholder</th><th className={th}>Kategori</th><th className={th}>Alamat</th>
+              <th className={th}>PIC / Kontak</th><th className={th}>Ketua</th><th className={th}>Peng.</th><th className={th}>Kep.</th>
+              <th className={th}>Kuadran</th><th className={th}>Status Data</th><th className={th}>Diperbarui</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((d, i) => (
+              <tr key={d.id} style={{ borderBottom: `1px solid ${C.line}`, pageBreakInside: "avoid" }}>
+                <td className={td}>{i + 1}</td>
+                <td className={`${td} font-bold`}>{d.nama}</td>
+                <td className={td}>{d.kategori}</td>
+                <td className={td}>{d.wilayah || "-"}</td>
+                <td className={td}>{d.namaPIC || "-"}{d.kontak ? ` (${d.kontak})` : ""}</td>
+                <td className={td}>{d.ketua || "-"}</td>
+                <td className={td}>{d.influence}</td>
+                <td className={td}>{d.interest}</td>
+                <td className={td}>{d.quadrant}</td>
+                <td className={td}><StatusTag status={d.status} />{d.status === "Perlu Update" && d.catatanVerifikasi ? <div className="mt-1" style={{ color: C.danger }}>{d.catatanVerifikasi}</div> : null}</td>
+                <td className={td}>{formatTanggal(d.updatedAt)}</td>
+              </tr>
+            ))}
+            {rows.length === 0 && <tr><td colSpan={11} className="py-8 text-center" style={{ color: C.muted }}>Tidak ada stakeholder yang sesuai filter.</td></tr>}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
