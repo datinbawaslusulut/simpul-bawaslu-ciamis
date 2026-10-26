@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   LayoutGrid, Building2, Grid2x2, ArrowLeftRight, FileText, LogOut,
   Search, Plus, Pencil, Trash2, ShieldCheck, AlertTriangle,
@@ -185,12 +185,17 @@ function Shell({ user, onLoggedOut }) {
   const isAdmin = user.role === "admin";
   const isVerifikator = user.role === "verifikator" || isAdmin; // admin punya semua hak verifikator
 
+  // Layar "Memuat…" hanya tampil pada pemuatan pertama. Pemuatan ulang setelah simpan/hapus/verifikasi
+  // berjalan diam-diam agar halaman (dan nomor halaman paginasi) tidak ter-reset.
+  const loadedOnce = useRef(false);
   const load = useCallback(async () => {
-    setLoading(true); setError("");
+    if (!loadedOnce.current) setLoading(true);
+    setError("");
     try {
       const { stakeholders, kolaborasi } = await fetchAll();
       setStakeholders(stakeholders || []);
       setKolaborasi(kolaborasi || []);
+      loadedOnce.current = true;
     } catch (e) { setError("Tidak dapat memuat data dari Google Sheets."); }
     finally { setLoading(false); }
   }, []);
