@@ -821,8 +821,8 @@ function MappingPage({ enriched, stats }) {
   enriched.forEach((d) => groups[d.quadrant].push(d));
 
   const QuadBox = ({ name }) => (
-    <div className="border p-3.5 text-xs" style={{ borderColor: "#dfe4ea" }}>
-      <b>{name.toUpperCase()}</b>
+    <div className="border p-3.5 text-xs min-w-0" style={{ borderColor: "#dfe4ea", minHeight: 150 }}>
+      <b>{name.toUpperCase()} <span className="font-normal" style={{ color: C.muted }}>({groups[name].length})</span></b>
       <div className="flex flex-wrap gap-1.5 mt-2">
         {groups[name].length === 0 && <span style={{ color: C.muted }}>Belum ada</span>}
         {groups[name].map((d) => (
@@ -838,7 +838,7 @@ function MappingPage({ enriched, stats }) {
       <div className="text-sm mb-6" style={{ color: C.muted }}>Matriks Pengaruh × Kepentingan untuk menentukan prioritas pendekatan.</div>
 
       <Panel>
-        <div className="grid gap-0" style={{ gridTemplateColumns: "80px 1fr 1fr", gridTemplateRows: "1fr 1fr 45px", height: 350 }}>
+        <div className="grid gap-0" style={{ gridTemplateColumns: "80px 1fr 1fr", gridTemplateRows: "auto auto 45px" }}>
           <div className="flex items-center justify-center font-bold text-sm" style={{ writingMode: "vertical-rl", color: C.muted, gridColumn: 1, gridRow: "1 / 3" }}>PENGARUH →</div>
           <QuadBox name="Jaga Hubungan Strategis" />
           <QuadBox name="Prioritas Utama" />
