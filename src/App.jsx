@@ -820,10 +820,10 @@ function MappingPage({ enriched, stats }) {
   const groups = { "Jaga Hubungan Strategis": [], "Prioritas Utama": [], "Pantau": [], "Informasi & Pelibatan": [] };
   enriched.forEach((d) => groups[d.quadrant].push(d));
 
-  const QuadBox = ({ name }) => (
-    <div className="border p-3.5 text-xs min-w-0" style={{ borderColor: "#dfe4ea", minHeight: 150 }}>
+  const quadBox = (name) => (
+    <div key={name} className="border p-3.5 text-xs min-w-0" style={{ borderColor: "#dfe4ea", minHeight: 150 }}>
       <b>{name.toUpperCase()} <span className="font-normal" style={{ color: C.muted }}>({groups[name].length})</span></b>
-      <div className="flex flex-wrap gap-1.5 mt-2">
+      <div className="flex flex-wrap gap-1.5 mt-2 overflow-y-auto pr-1" style={{ maxHeight: 260 }}>
         {groups[name].length === 0 && <span style={{ color: C.muted }}>Belum ada</span>}
         {groups[name].map((d) => (
           <span key={d.id} className="px-2 py-1 rounded-full" style={{ backgroundColor: "#eaf0f8" }}>{d.nama}</span>
@@ -838,13 +838,17 @@ function MappingPage({ enriched, stats }) {
       <div className="text-sm mb-6" style={{ color: C.muted }}>Matriks Pengaruh × Kepentingan untuk menentukan prioritas pendekatan.</div>
 
       <Panel>
-        <div className="grid gap-0" style={{ gridTemplateColumns: "80px 1fr 1fr", gridTemplateRows: "auto auto 45px" }}>
-          <div className="flex items-center justify-center font-bold text-sm" style={{ writingMode: "vertical-rl", color: C.muted, gridColumn: 1, gridRow: "1 / 3" }}>PENGARUH →</div>
-          <QuadBox name="Jaga Hubungan Strategis" />
-          <QuadBox name="Prioritas Utama" />
-          <QuadBox name="Pantau" />
-          <QuadBox name="Informasi & Pelibatan" />
-          <div className="text-center font-bold text-sm py-3" style={{ gridColumn: "2 / 4", color: C.muted }}>KEPENTINGAN →</div>
+        <div className="flex gap-3">
+          <div className="flex items-center justify-center font-bold text-sm shrink-0" style={{ writingMode: "vertical-rl", color: C.muted, width: 28 }}>PENGARUH →</div>
+          <div className="flex-1 min-w-0">
+            <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }}>
+              {quadBox("Jaga Hubungan Strategis")}
+              {quadBox("Prioritas Utama")}
+              {quadBox("Pantau")}
+              {quadBox("Informasi & Pelibatan")}
+            </div>
+            <div className="text-center font-bold text-sm pt-3" style={{ color: C.muted }}>KEPENTINGAN →</div>
+          </div>
         </div>
       </Panel>
 
